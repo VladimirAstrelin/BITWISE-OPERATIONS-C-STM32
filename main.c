@@ -14,6 +14,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "hal_alias.h"
 
 #include "LCD1602.h"
 #include <string.h>
@@ -41,8 +42,8 @@ I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
 
-uint8_t current_value = 0x01; // Начальное значение: только младший бит установлен
-uint8_t mask_value = 0x0F;    // Маска для битовых операций HEX: 0000-1111
+uint8_t current_value = 0b00000001; // Начальное значение
+uint8_t mask = 0x0F;    // Маска для битовых операций HEX: 0000-1111
 
 /* USER CODE END PV */
 
@@ -55,28 +56,28 @@ static void MX_I2C1_Init(void);
 // Функция для определения нажатой кнопки + управление светодиодами
 const char* Get_Button_Name(void) {
     // Сначала гасим все светодиоды
-    HAL_GPIO_WritePin(GPIOD, GREEN_Pin|ORANGE_Pin|RED_Pin|BLUE_Pin, GPIO_PIN_RESET);
+	write(GPIOD, GREEN_Pin|ORANGE_Pin|RED_Pin|BLUE_Pin, 0);
 
     // Проверяем кнопки и включаем соответствующий светодиод
-    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1) == GPIO_PIN_RESET) {
-        HAL_GPIO_WritePin(GPIOD, GREEN_Pin, GPIO_PIN_SET);  // Зелёный для UP
+    if (read(GPIOA, UP_Pin) == 0) {
+        write(GPIOD, GREEN_Pin, 1);  // Зелёный для UP
         return "UP";
     }
-    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2) == GPIO_PIN_RESET) {
-        HAL_GPIO_WritePin(GPIOD, RED_Pin, GPIO_PIN_SET);    // Красный для DOWN
+    if (read(GPIOA, DOWN_Pin) == 0) {
+    	write(GPIOD, RED_Pin, 1);    // Красный для DOWN
         return "DOWN";
     }
-    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3) == GPIO_PIN_RESET) {
-        HAL_GPIO_WritePin(GPIOD, BLUE_Pin, GPIO_PIN_SET);   // Синий для LEFT
+    if (read(GPIOA, LEFT_Pin) == 0) {
+    	write(GPIOD, BLUE_Pin, 1);   // Синий для LEFT
         return "LEFT";
     }
-    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET) {
-        HAL_GPIO_WritePin(GPIOD, ORANGE_Pin, GPIO_PIN_SET); // Оранжевый для RIGHT
+    if (read(GPIOA, RIGHT_Pin) == 0) {
+    	write(GPIOD, ORANGE_Pin, 1); // Оранжевый для RIGHT
         return "RIGHT";
     }
-    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5) == GPIO_PIN_RESET) {
+    if (read(GPIOA, ENTER_Pin) == 0) {
         // Включаем ВСЕ светодиоды для ENTER
-        HAL_GPIO_WritePin(GPIOD, GREEN_Pin|ORANGE_Pin|RED_Pin|BLUE_Pin, GPIO_PIN_SET);
+    	write(GPIOD, GREEN_Pin|ORANGE_Pin|RED_Pin|BLUE_Pin, 1);
         return "ENTER";
     }
     return "NONE";//Если ни одна кнопка не нажата, возвращаем "NONE"
@@ -113,11 +114,11 @@ void Display_Binary_Value(uint8_t value) {
 
 // Функция для отображения HEX и DEC значения
 void Display_Hex_Dec_Value(uint8_t value) {
-    char hex_str[17];
-    snprintf(hex_str, sizeof(hex_str), "HEX:0x%02X DEC:%3d", value, value);
+    char hex_dec_str[17];
+    snprintf(hex_dec_str, sizeof(hex_dec_str), "HEX:0x%02X DEC:%3d", value, value);
 
     LCD_SetCursor(0, 0);
-    LCD_PrintString(hex_str);
+    LCD_PrintString(hex_dec_str);
 }
 
 /* USER CODE END PFP */
@@ -162,7 +163,7 @@ int main(void)
   LCD_Init();
 
   // Изначально все светодиоды выключены
-  HAL_GPIO_WritePin(GPIOD, GREEN_Pin|ORANGE_Pin|RED_Pin|BLUE_Pin, GPIO_PIN_RESET);
+  write(GPIOD, GREEN_Pin|ORANGE_Pin|RED_Pin|BLUE_Pin, 0);
 
   // Отображаем начальное значение
   Display_Hex_Dec_Value(current_value);
@@ -189,22 +190,22 @@ int main(void)
         }
         else if (strcmp(button, "UP") == 0) {
             // Установка бита (OR операция)
-            current_value |= mask_value;
+            current_value |= mask;
         }
         else if (strcmp(button, "DOWN") == 0) {
             // Сброс бита (AND с инверсией)
-            current_value &= ~mask_value;
+            current_value &= ~mask;
         }
         else if (strcmp(button, "ENTER") == 0) {
             // Инверсия битов (XOR со всеми единицами)
-            current_value ^= mask_value;
+            current_value ^= mask;
         }
 
         // Обновляем отображение
         Display_Hex_Dec_Value(current_value);
         Display_Binary_Value(current_value);
 
-        HAL_Delay(50); // Задержка для антидребезга 300
+        delay(50); // Задержка для антидребезга 50ms
     }
 
     /* USER CODE END WHILE */
@@ -314,10 +315,10 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GREEN_Pin|ORANGE_Pin|RED_Pin|BLUE_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : UP_Pin_Pin DOWN_Pin_Pin LEFT_Pin_Pin RIGHT_Pin_Pin
-                           ENTER_Pin_Pin */
-  GPIO_InitStruct.Pin = UP_Pin_Pin|DOWN_Pin_Pin|LEFT_Pin_Pin|RIGHT_Pin_Pin
-                          |ENTER_Pin_Pin;
+  /*Configure GPIO pins : UP_Pin DOWN_Pin LEFT_Pin RIGHT_Pin
+                           ENTER_Pin */
+  GPIO_InitStruct.Pin = UP_Pin|DOWN_Pin|LEFT_Pin|RIGHT_Pin
+                          |ENTER_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
